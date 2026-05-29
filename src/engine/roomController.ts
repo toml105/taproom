@@ -331,7 +331,9 @@ export class RoomController {
     const sips = assignSips(ranking, this.snap.settings.maxSipsPerRound)
     const m = new Map(this.snap.standings.map((s) => [s.id, s.cumulativeSips]))
     for (const sr of sips) m.set(sr.id, (m.get(sr.id) ?? 0) + sr.sips)
-    this.snap.standings = roster.map((p) => ({ id: p.id, cumulativeSips: m.get(p.id) ?? 0 }))
+    // Union of everyone ever seen, so a momentary presence blip never drops a player.
+    const ids = new Set<string>([...m.keys(), ...roster.map((p) => p.id)])
+    this.snap.standings = [...ids].map((id) => ({ id, cumulativeSips: m.get(id) ?? 0 }))
     this.snap.lastRound = { round, gameId: game.id, ranking, sips }
     this.snap.phase = 'roundResults'
     this.broadcastState('round_results', {
@@ -549,17 +551,28 @@ export class RoomController {
   }
 
   private buildRoster(): PublicPlayer[] {
-    return this.presences
-      .map((p) => ({
-        id: p.id,
-        name: p.name || 'Player',
-        emoji: p.emoji,
-        joinOrder: this.joinOrder.get(p.id) ?? p.joinOrder ?? 999,
+    const list = this.presences.map((p) => ({
+      id: p.id,
+      name: p.name || 'Player',
+      emoji: p.emoji,
+      joinOrder: this.joinOrder.get(p.id) ?? p.joinOrder ?? 999,
+      connected: true,
+      isHost: p.id === this.ident.id,
+      soft: p.soft,
+    }))
+    // The host is always present locally, even if a presence sync briefly drops it.
+    if (this.isHost && !list.some((p) => p.id === this.ident.id)) {
+      list.push({
+        id: this.ident.id,
+        name: this.ident.name || 'Player',
+        emoji: this.ident.emoji,
+        joinOrder: 0,
         connected: true,
-        isHost: p.id === this.ident.id,
-        soft: p.soft,
-      }))
-      .sort((a, b) => a.joinOrder - b.joinOrder)
+        isHost: true,
+        soft: this.soft,
+      })
+    }
+    return list.sort((a, b) => a.joinOrder - b.joinOrder)
   }
 
   private broadcastRoster() {
