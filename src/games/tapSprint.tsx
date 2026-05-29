@@ -45,7 +45,7 @@ function TapSprint({ ctx }: { ctx: MicroGameContext }) {
   const secs = (left / 1000).toFixed(1)
 
   return (
-    <div className="flex h-full w-full select-none flex-col items-center justify-between px-6 py-8">
+    <div className="flex w-full flex-1 select-none flex-col items-center justify-between px-6 py-8">
       <div className="text-center">
         <p className="font-display text-xs tracking-widest text-amber/80">{secs}s</p>
         <p className="mt-3 font-signage text-7xl leading-none text-ink text-glow-amber">{count}</p>

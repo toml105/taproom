@@ -4,6 +4,8 @@ import { Room } from './screens/Room'
 import { ageConfirmed } from './lib/age'
 import { loadIdentity } from './lib/identity'
 import { generateRoomCode, normalizeRoomCode, isValidRoomCode } from './lib/roomCode'
+import { GAMES_BY_ID } from './games/registry'
+import type { MicroGameContext } from './games/types'
 
 type Route = 'gate' | 'landing' | 'join' | 'name' | 'room'
 
@@ -53,6 +55,25 @@ export default function App() {
     window.location.hash = ''
     setCode('')
     setRoute('landing')
+  }
+
+  // Dev-only: isolate a single game for QA via ?game=<id>. Dead-code in prod.
+  if (import.meta.env.DEV) {
+    const gid = new URLSearchParams(window.location.search).get('game')
+    const g = gid ? GAMES_BY_ID[gid] : undefined
+    if (g) {
+      const ctx: MicroGameContext = {
+        round: 3,
+        seed: 4242,
+        handicap: false,
+        submit: (r) => console.log(`[sandbox] score ${r.score} · valid ${r.valid}`),
+      }
+      return (
+        <div className="flex min-h-dvh flex-col bg-pub text-ink">
+          <g.Play ctx={ctx} />
+        </div>
+      )
+    }
   }
 
   switch (route) {

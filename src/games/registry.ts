@@ -1,9 +1,12 @@
 import type { MicroGame } from './types'
 import { mulberry32 } from '../lib/rng'
 import { tapSprint } from './tapSprint'
+import { bullseye } from './bullseye'
+import { quickdraw } from './quickdraw'
+import { stroop } from './stroop'
+import { echo } from './echo'
 
-// More games get added here as they land (Bullseye, Stroop, Echo, Quickdraw).
-export const GAMES: MicroGame[] = [tapSprint]
+export const GAMES: MicroGame[] = [bullseye, tapSprint, stroop, echo, quickdraw]
 
 export const GAMES_BY_ID: Record<string, MicroGame> = Object.fromEntries(
   GAMES.map((g) => [g.id, g]),
