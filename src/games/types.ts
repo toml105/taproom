@@ -1,7 +1,13 @@
 import type { ComponentType } from 'react'
 
 export type ScoreDirection = 'higher' | 'lower'
-export type GameCategory = 'reflex' | 'precision' | 'memory' | 'focus' | 'motor'
+export type GameCategory =
+  | 'reflex'
+  | 'precision'
+  | 'memory'
+  | 'focus'
+  | 'motor'
+  | 'knowledge'
 
 /** Everything a micro-game needs to run locally and report one number. */
 export interface MicroGameContext {

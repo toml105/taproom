@@ -1,12 +1,24 @@
-import type { MicroGame } from './types'
+import type { MicroGame, GameCategory } from './types'
 import { mulberry32 } from '../lib/rng'
 import { tapSprint } from './tapSprint'
 import { bullseye } from './bullseye'
 import { quickdraw } from './quickdraw'
 import { stroop } from './stroop'
 import { echo } from './echo'
+import { trivia } from './trivia'
+import { closestCall } from './closestCall'
+import { higherLower } from './higherLower'
 
-export const GAMES: MicroGame[] = [bullseye, tapSprint, stroop, echo, quickdraw]
+export const GAMES: MicroGame[] = [
+  trivia,
+  quickdraw,
+  closestCall,
+  bullseye,
+  higherLower,
+  tapSprint,
+  stroop,
+  echo,
+]
 
 export const GAMES_BY_ID: Record<string, MicroGame> = Object.fromEntries(
   GAMES.map((g) => [g.id, g]),
@@ -14,12 +26,18 @@ export const GAMES_BY_ID: Record<string, MicroGame> = Object.fromEntries(
 
 export const ALL_GAME_IDS = GAMES.map((g) => g.id)
 
+const byCat = (cats: GameCategory[]) =>
+  GAMES.filter((g) => cats.includes(g.category)).map((g) => g.id)
+
+/** Curated groupings the host can pick in the lobby. */
+export const PACKS: { key: string; label: string; ids: string[] }[] = [
+  { key: 'all', label: 'Everything', ids: ALL_GAME_IDS },
+  { key: 'brains', label: 'Brains', ids: byCat(['knowledge', 'memory', 'focus']) },
+  { key: 'reflexes', label: 'Reflexes', ids: byCat(['reflex', 'precision', 'motor', 'focus']) },
+]
+
 /** Pick the next game, avoiding the last couple played. Seeded for determinism. */
-export function pickNextGame(
-  enabledIds: string[],
-  recentIds: string[],
-  seed: number,
-): MicroGame {
+export function pickNextGame(enabledIds: string[], recentIds: string[], seed: number): MicroGame {
   const base = enabledIds.length ? GAMES.filter((g) => enabledIds.includes(g.id)) : GAMES
   const recent = new Set(recentIds.slice(-2))
   const fresh = base.filter((g) => !recent.has(g.id))

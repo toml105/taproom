@@ -34,7 +34,16 @@ export function AgeGate({ onConfirm }: { onConfirm: () => void }) {
   )
 }
 
-const TEASER_GAMES = ['QUICK DRAW', 'BULLSEYE', 'TAP SPRINT', 'STROOP', 'ECHO']
+const TEASER_GAMES = [
+  'TRIVIA',
+  'QUICK DRAW',
+  'CLOSEST CALL',
+  'BULLSEYE',
+  'HIGHER OR LOWER',
+  'STROOP',
+  'ECHO',
+  'TAP SPRINT',
+]
 
 export function Landing({ onCreate, onJoin }: { onCreate: () => void; onJoin: () => void }) {
   return (

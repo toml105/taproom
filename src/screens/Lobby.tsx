@@ -2,6 +2,7 @@ import { Screen, PrimaryButton, Wordmark, PlayerChip } from '../components/ui'
 import { ShareSheet } from '../components/ShareSheet'
 import { useRoomStore } from '../store/useRoomStore'
 import { getController } from '../hooks/useRoom'
+import { PACKS } from '../games/registry'
 
 export function Lobby() {
   const snapshot = useRoomStore((s) => s.snapshot)
@@ -10,6 +11,9 @@ export function Lobby() {
   const roomCode = useRoomStore((s) => s.roomCode)
   const players = snapshot.players
   const me = players.find((p) => p.id === selfId)
+  const settings = snapshot.settings
+  const sameSet = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x))
+  const activePack = PACKS.find((p) => sameSet(p.ids, settings.enabledGameIds))?.key ?? 'custom'
 
   return (
     <Screen className="px-6">
@@ -39,6 +43,46 @@ export function Lobby() {
       </div>
 
       <div className="mt-4 space-y-3">
+        {isHost && (
+          <div className="space-y-3 rounded-2xl border border-line/60 bg-panel/40 p-3">
+            <div>
+              <p className="mb-1.5 text-[11px] uppercase tracking-wide text-ink-low">Game pack</p>
+              <div className="grid grid-cols-3 gap-2">
+                {PACKS.map((p) => (
+                  <button
+                    key={p.key}
+                    onClick={() => getController()?.setSettings({ enabledGameIds: p.ids })}
+                    className={`rounded-xl px-2 py-2 text-sm font-semibold transition ${
+                      activePack === p.key
+                        ? 'bg-amber text-pit'
+                        : 'border border-line/60 bg-panel text-ink-mid'
+                    }`}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] uppercase tracking-wide text-ink-low">Max sips / round</p>
+              <div className="flex gap-1.5">
+                {[1, 2, 3].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => getController()?.setSettings({ maxSipsPerRound: n })}
+                    className={`h-9 w-9 rounded-lg text-sm font-bold transition ${
+                      settings.maxSipsPerRound === n
+                        ? 'bg-amber text-pit'
+                        : 'border border-line/60 bg-panel text-ink-mid'
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
         <button
           onClick={() => getController()?.setSoft(!(me?.soft ?? false))}
           className="flex w-full items-center justify-between rounded-xl border border-line bg-panel/60 px-4 py-3 text-left"

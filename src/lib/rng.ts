@@ -14,3 +14,15 @@ export function mulberry32(seed: number): () => number {
 export function randomSeed(): number {
   return (Math.random() * 0xffffffff) >>> 0
 }
+
+/** Deterministically pick `count` distinct indices in [0, length) from a seed. */
+export function pickIndices(seed: number, length: number, count: number): number[] {
+  const rng = mulberry32(seed)
+  const idx = Array.from({ length }, (_, i) => i)
+  const n = Math.min(count, length)
+  for (let i = 0; i < n; i++) {
+    const j = i + Math.floor(rng() * (length - i))
+    ;[idx[i], idx[j]] = [idx[j], idx[i]]
+  }
+  return idx.slice(0, n)
+}

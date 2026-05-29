@@ -125,6 +125,13 @@ export class RoomController {
     if (this.isHost) this.broadcastRoster()
   }
 
+  setSettings(p: Partial<GameSettings>) {
+    if (!this.isHost) return
+    this.snap.settings = { ...this.snap.settings, ...p }
+    if (!this.snap.settings.enabledGameIds.length) this.snap.settings.enabledGameIds = ALL_GAME_IDS
+    this.broadcastRoster()
+  }
+
   startSession(settings?: Partial<GameSettings>) {
     if (!this.isHost) return
     this.snap.settings = { ...this.snap.settings, ...settings }
