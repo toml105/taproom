@@ -6,6 +6,7 @@ import { loadIdentity } from './lib/identity'
 import { generateRoomCode, normalizeRoomCode, isValidRoomCode } from './lib/roomCode'
 import { GAMES_BY_ID } from './games/registry'
 import type { MicroGameContext } from './games/types'
+import { HoldToDrink } from './components/ritual'
 
 type Route = 'gate' | 'landing' | 'join' | 'name' | 'room'
 
@@ -71,6 +72,16 @@ export default function App() {
       return (
         <div className="flex min-h-dvh flex-col bg-pub text-ink">
           <g.Play ctx={ctx} />
+        </div>
+      )
+    }
+    if (new URLSearchParams(window.location.search).get('screen') === 'ritual') {
+      return (
+        <div className="flex min-h-dvh flex-col items-center justify-center gap-5 bg-pub text-ink">
+          <p className="font-display text-xs tracking-[0.3em] text-ink-low">YOU PLACED 4TH</p>
+          <p className="font-signage text-6xl text-neon-pink text-glow-pink">3</p>
+          <p className="text-ink-mid">sips to drink</p>
+          <HoldToDrink onDone={() => console.log('[ritual] drank')} />
         </div>
       )
     }

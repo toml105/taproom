@@ -1,5 +1,6 @@
 import { useRoom } from '../hooks/useRoom'
 import { Screen } from '../components/ui'
+import { EmoteLayer } from '../components/Emote'
 import { Lobby } from './Lobby'
 import { RoundIntro, Countdown, PlayScreen, Waiting } from './Round'
 import { RoundResults, Leaderboard, EndAwards } from './Results'
@@ -58,6 +59,7 @@ export function Room({
   return (
     <>
       {content}
+      <EmoteLayer />
       {s.status === 'reconnecting' && (
         <div className="fixed inset-x-0 top-0 z-50 bg-neon-pink/90 py-1 text-center text-xs font-semibold text-pit">
           Reconnecting…

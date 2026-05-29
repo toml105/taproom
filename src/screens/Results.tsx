@@ -1,5 +1,8 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Screen, PrimaryButton, GhostButton, PlayerChip } from '../components/ui'
+import { HoldToDrink } from '../components/ritual'
+import { EmoteBar } from '../components/Emote'
 import { useRoomStore } from '../store/useRoomStore'
 import { getController } from '../hooks/useRoom'
 import { GAMES_BY_ID } from '../games/registry'
@@ -24,6 +27,8 @@ export function RoundResults() {
   const players = byId(snapshot.players)
   const game = lr ? GAMES_BY_ID[lr.gameId] : undefined
   const myRank = lr?.ranking.find((r) => r.id === selfId)?.rank
+  const soft = snapshot.players.find((p) => p.id === selfId)?.soft ?? false
+  const [skipped, setSkipped] = useState(false)
 
   return (
     <Screen className="px-6">
@@ -32,14 +37,44 @@ export function RoundResults() {
           YOU PLACED {ordinal(myRank)}
         </p>
         {mySips > 0 ? (
-          <motion.h1
-            initial={{ scale: 0.7, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ ease: [0.22, 1, 0.36, 1], duration: 0.4 }}
-            className="mt-3 font-signage text-6xl text-neon-pink text-glow-pink"
-          >
-            DRINK {mySips}
-          </motion.h1>
+          <>
+            <motion.h1
+              initial={{ scale: 0.7, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ ease: [0.22, 1, 0.36, 1], duration: 0.4 }}
+              className="mt-3 font-signage text-6xl text-neon-pink text-glow-pink"
+            >
+              {mySips}
+            </motion.h1>
+            <p className="mt-1 text-ink-mid">
+              {soft
+                ? mySips === 1
+                  ? 'soft sip'
+                  : 'soft sips'
+                : mySips === 1
+                  ? 'sip to drink'
+                  : 'sips to drink'}
+            </p>
+            <div className="mt-7">
+              {skipped ? (
+                <p className="font-signage text-lg text-ink-mid">Skipped 👍 no pressure</p>
+              ) : (
+                <HoldToDrink
+                  label={soft ? 'HOLD TO SIP' : 'HOLD TO DRINK'}
+                  doneLabel={soft ? 'NICE ONE' : 'DOWN THE HATCH'}
+                  onDone={() => getController()?.sendEmote('🍻')}
+                />
+              )}
+            </div>
+            {!skipped && (
+              <button
+                onClick={() => setSkipped(true)}
+                className="mt-4 text-xs text-ink-low underline"
+              >
+                Sitting this one out
+              </button>
+            )}
+          </>
         ) : (
           <motion.h1
             initial={{ scale: 0.7, opacity: 0 }}
@@ -50,7 +85,6 @@ export function RoundResults() {
             STAY SOBER 😎
           </motion.h1>
         )}
-        {mySips > 0 && <p className="mt-1 text-ink-mid">{mySips === 1 ? 'sip' : 'sips'}</p>}
       </div>
 
       <div className="mb-2 space-y-1.5">
@@ -116,6 +150,15 @@ export function Leaderboard({ onLeave }: { onLeave: () => void }) {
         {standings.length === 0 && (
           <p className="text-center text-sm text-ink-low">No scores yet.</p>
         )}
+      </div>
+
+      {snapshot.round % 5 === 0 && (
+        <p className="mt-3 text-center text-sm text-neon-cyan">
+          💧 Hydrate check. Grab a glass of water.
+        </p>
+      )}
+      <div className="mt-3">
+        <EmoteBar />
       </div>
 
       {isHost ? (

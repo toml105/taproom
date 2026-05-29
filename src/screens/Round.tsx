@@ -3,6 +3,7 @@ import { motion, useReducedMotion } from 'framer-motion'
 import { Screen } from '../components/ui'
 import { useRoomStore } from '../store/useRoomStore'
 import { getController } from '../hooks/useRoom'
+import { EmoteBar } from '../components/Emote'
 import type { MicroGameContext } from '../games/types'
 
 export function RoundIntro() {
@@ -96,6 +97,9 @@ export function Waiting() {
           {submitted}/{active} done
         </p>
       )}
+      <div className="mt-8">
+        <EmoteBar />
+      </div>
     </Screen>
   )
 }
