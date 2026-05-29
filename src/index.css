@@ -1,0 +1,113 @@
+@import 'tailwindcss';
+
+/*
+  TAPROOM design tokens. Retro pub arcade: a dim wood-panelled bar at midnight,
+  neon beer signs buzzing on the wall, friends hunched over glowing phones.
+  Color strategy: Committed (amber carries the brand) + neon accents for state
+  and the big "moments". OKLCH throughout (impeccable rule).
+*/
+@theme {
+  /* Surfaces: warm mineral darks, never pure black */
+  --color-pit: oklch(0.13 0.014 58); /* deepest inset / vignette */
+  --color-pub: oklch(0.17 0.018 58); /* page ground (espresso wood) */
+  --color-panel: oklch(0.22 0.022 56); /* panels */
+  --color-raised: oklch(0.27 0.024 54); /* raised cards / wood grain */
+  --color-line: oklch(0.4 0.03 60); /* hairline borders */
+
+  /* Amber: the house glow (primary brand) */
+  --color-amber: oklch(0.82 0.16 79);
+  --color-amber-bright: oklch(0.88 0.15 85);
+  --color-amber-deep: oklch(0.7 0.15 64);
+  --color-beer: oklch(0.74 0.16 72); /* liquid fill */
+  --color-foam: oklch(0.94 0.03 88);
+
+  /* Neon accents: used as light, never as small body text */
+  --color-neon-pink: oklch(0.66 0.25 8); /* "DRINK" / loser / alerts */
+  --color-neon-green: oklch(0.86 0.26 148); /* GO / winner / soberest */
+  --color-neon-cyan: oklch(0.84 0.13 196); /* info / links / ready */
+  --color-neon-violet: oklch(0.66 0.19 300); /* wager / secondary */
+
+  /* Text: warm off-white carrying readable content at AA */
+  --color-ink: oklch(0.95 0.022 88);
+  --color-ink-mid: oklch(0.8 0.03 82);
+  --color-ink-low: oklch(0.66 0.03 78);
+
+  /* Type families */
+  --font-display: 'Press Start 2P', ui-monospace, monospace;
+  --font-signage: 'Bungee', system-ui, sans-serif;
+  --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* Arcade easing (ease-out, no bounce) */
+  --ease-pop: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background-color: var(--color-pub);
+    color: var(--color-ink);
+    font-family: var(--font-ui);
+    font-synthesis-weight: none;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    overscroll-behavior: none;
+    user-select: none;
+  }
+  #root {
+    min-height: 100dvh;
+    isolation: isolate;
+  }
+  button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  input,
+  textarea {
+    font: inherit;
+    user-select: text;
+  }
+  ::selection {
+    background: var(--color-amber);
+    color: var(--color-pit);
+  }
+}
+
+@layer utilities {
+  .text-glow-amber {
+    text-shadow: 0 0 14px color-mix(in oklab, var(--color-amber) 55%, transparent);
+  }
+  .text-glow-pink {
+    text-shadow: 0 0 16px color-mix(in oklab, var(--color-neon-pink) 60%, transparent);
+  }
+  .text-glow-green {
+    text-shadow: 0 0 16px color-mix(in oklab, var(--color-neon-green) 55%, transparent);
+  }
+  .ring-glow-amber {
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--color-amber) 70%, transparent),
+      0 0 28px -6px var(--color-amber);
+  }
+  /* Faint CRT scanlines for arcade atmosphere (decorative, low contrast) */
+  .scanlines {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0 2px,
+      color-mix(in oklab, black 22%, transparent) 2px 3px
+    );
+  }
+}
