@@ -48,6 +48,7 @@ export interface RoundIntro {
   title: string
   instructions: string
   introMs: number
+  power: boolean
 }
 export interface Countdown {
   round: number
@@ -55,6 +56,7 @@ export interface Countdown {
   roundSeed: number
   countMs: number
   playMs: number
+  power: boolean
 }
 export interface ResultMsg {
   round: number

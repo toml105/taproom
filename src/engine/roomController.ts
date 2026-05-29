@@ -245,10 +245,15 @@ export class RoomController {
     for (const p of ordered) this.joinOrder.set(p.id, this.nextJoinOrder++)
     this.myJoinOrder = this.joinOrder.get(this.ident.id) ?? 0
 
+    const winsM = new Map(this.snap.standings.map((s) => [s.id, s.wins ?? 0]))
     const m = new Map<string, number>()
     this.snap.standings.forEach((s) => m.set(s.id, s.cumulativeSips))
     this.presences.forEach((p) => m.set(p.id, Math.max(m.get(p.id) ?? 0, p.cumulativeSips ?? 0)))
-    this.snap.standings = [...m].map(([id, cumulativeSips]) => ({ id, cumulativeSips }))
+    this.snap.standings = [...m].map(([id, cumulativeSips]) => ({
+      id,
+      cumulativeSips,
+      wins: winsM.get(id) ?? 0,
+    }))
     this.snap.hostId = this.ident.id
     if (MID_ROUND_PHASES.includes(this.snap.phase)) {
       this.snap.phase = this.snap.round > 0 ? 'leaderboard' : 'lobby'
@@ -280,9 +285,11 @@ export class RoomController {
   private beginRound(round: number) {
     const seed = randomSeed()
     const game = pickNextGame(this.snap.settings.enabledGameIds, this.snap.recentGameIds, seed)
+    const power = round % 4 === 0 // every 4th round is double stakes
     this.snap.round = round
     this.snap.gameId = game.id
     this.snap.roundSeed = seed
+    this.snap.power = power
     this.snap.recentGameIds = [...this.snap.recentGameIds, game.id].slice(-4)
     this.snap.phase = 'roundIntro'
     this.roundResults.clear()
@@ -293,6 +300,7 @@ export class RoomController {
       title: game.title,
       instructions: game.tagline,
       introMs: INTRO_MS,
+      power,
     } satisfies RoundIntro)
     this.localEnterIntro(game, seed)
     this.refereeTimer = this.setT(INTRO_MS, () => this.hostStartCountdown(round, game, seed))
@@ -306,6 +314,7 @@ export class RoomController {
       roundSeed: seed,
       countMs: COUNT_MS,
       playMs: game.playMs,
+      power: this.snap.power,
     } satisfies Countdown)
     this.localStartCountdown(game, seed, COUNT_MS, game.playMs)
     this.refereeTimer = this.setT(COUNT_MS + game.playMs + COLLECT_GRACE_MS, () =>
@@ -335,12 +344,23 @@ export class RoomController {
       return { id: p.id, score: r ? r.score : 0, valid: r ? r.valid : false }
     })
     const ranking = rankScores(scores, game.direction === 'higher')
-    const sips = assignSips(ranking, this.snap.settings.maxSipsPerRound)
+    const base = assignSips(ranking, this.snap.settings.maxSipsPerRound)
+    // Power round doubles sips, hard-capped at 5 for safety.
+    const sips = this.snap.power
+      ? base.map((s) => ({ id: s.id, sips: s.sips > 0 ? Math.min(5, s.sips * 2) : 0 }))
+      : base
     const m = new Map(this.snap.standings.map((s) => [s.id, s.cumulativeSips]))
     for (const sr of sips) m.set(sr.id, (m.get(sr.id) ?? 0) + sr.sips)
+    const winsMap = new Map(this.snap.standings.map((s) => [s.id, s.wins ?? 0]))
+    const topValid = ranking.find((r) => r.valid)
+    if (topValid) winsMap.set(topValid.id, (winsMap.get(topValid.id) ?? 0) + 1)
     // Union of everyone ever seen, so a momentary presence blip never drops a player.
     const ids = new Set<string>([...m.keys(), ...roster.map((p) => p.id)])
-    this.snap.standings = [...ids].map((id) => ({ id, cumulativeSips: m.get(id) ?? 0 }))
+    this.snap.standings = [...ids].map((id) => ({
+      id,
+      cumulativeSips: m.get(id) ?? 0,
+      wins: winsMap.get(id) ?? 0,
+    }))
     this.snap.lastRound = { round, gameId: game.id, ranking, sips }
     this.snap.phase = 'roundResults'
     this.broadcastState('round_results', {
@@ -473,6 +493,7 @@ export class RoomController {
     this.snap.round = p.round
     this.snap.gameId = p.gameId
     this.snap.roundSeed = p.roundSeed
+    this.snap.power = p.power
     this.snap.phase = 'roundIntro'
     this.localEnterIntro(game, p.roundSeed)
   }
@@ -483,6 +504,7 @@ export class RoomController {
     this.snap.round = p.round
     this.snap.gameId = p.gameId
     this.snap.roundSeed = p.roundSeed
+    this.snap.power = p.power
     this.snap.phase = 'countdown'
     this.localStartCountdown(game, p.roundSeed, p.countMs, p.playMs)
   }

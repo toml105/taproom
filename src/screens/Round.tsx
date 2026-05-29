@@ -23,6 +23,11 @@ export function RoundIntro() {
         {game?.title ?? 'Next game'}
       </motion.h1>
       <p className="mt-4 max-w-xs text-pretty text-ink-mid">{game?.tagline}</p>
+      {snapshot.power && (
+        <p className="mt-4 font-signage text-lg text-neon-pink text-glow-pink">
+          ⚡ POWER ROUND · double sips
+        </p>
+      )}
       <p className="mt-8 font-display text-[10px] tracking-[0.3em] text-amber/70">GET READY</p>
     </Screen>
   )

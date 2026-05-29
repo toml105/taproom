@@ -26,3 +26,9 @@ export function pickIndices(seed: number, length: number, count: number): number
   }
   return idx.slice(0, n)
 }
+
+/** Seed-shuffle options and return the new index of the original answer. */
+export function shuffleWithAnswer(seed: number, options: string[], answer: number) {
+  const order = pickIndices(seed, options.length, options.length)
+  return { options: order.map((o) => options[o]), answer: order.indexOf(answer) }
+}

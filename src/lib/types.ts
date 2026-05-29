@@ -38,6 +38,7 @@ export interface PublicPlayer {
 export interface Standing {
   id: string
   cumulativeSips: number
+  wins?: number
 }
 
 export interface RankRow {
@@ -88,6 +89,7 @@ export interface EngineSnapshot {
   round: number
   gameId: string | null
   roundSeed: number | null
+  power: boolean
   hostId: string
   roomCode: string
   players: PublicPlayer[]

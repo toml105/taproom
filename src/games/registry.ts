@@ -8,14 +8,24 @@ import { echo } from './echo'
 import { trivia } from './trivia'
 import { closestCall } from './closestCall'
 import { higherLower } from './higherLower'
+import { oddOneOut } from './oddOneOut'
+import { flags } from './flags'
+import { trueFalse } from './trueFalse'
+import { finishSaying } from './finishSaying'
+import { guessYear } from './guessYear'
 
 export const GAMES: MicroGame[] = [
   trivia,
   quickdraw,
+  oddOneOut,
   closestCall,
+  flags,
   bullseye,
+  trueFalse,
   higherLower,
+  finishSaying,
   tapSprint,
+  guessYear,
   stroop,
   echo,
 ]

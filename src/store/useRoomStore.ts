@@ -22,6 +22,7 @@ export function emptySnapshot(roomCode = '', hostId = ''): EngineSnapshot {
     round: 0,
     gameId: null,
     roundSeed: null,
+    power: false,
     hostId,
     roomCode,
     players: [],

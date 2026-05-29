@@ -183,6 +183,7 @@ export function EndAwards({ onLeave }: { onLeave: () => void }) {
   const standings = [...snapshot.standings].sort((a, b) => a.cumulativeSips - b.cumulativeSips)
   const winner = standings[0]
   const lush = standings.length > 1 ? standings[standings.length - 1] : undefined
+  const mvp = [...standings].sort((a, b) => (b.wins ?? 0) - (a.wins ?? 0))[0]
 
   return (
     <Screen className="px-6 text-center">
@@ -196,6 +197,12 @@ export function EndAwards({ onLeave }: { onLeave: () => void }) {
         {lush && lush.id !== winner?.id && (
           <p className="mt-6 text-sm text-ink-low">
             🍻 The Lush: {players[lush.id]?.name ?? 'Player'} ({lush.cumulativeSips} sips)
+          </p>
+        )}
+        {mvp && (mvp.wins ?? 0) > 0 && (
+          <p className="mt-2 text-sm text-ink-low">
+            🏆 MVP: {players[mvp.id]?.name ?? 'Player'} ({mvp.wins} round{' '}
+            {mvp.wins === 1 ? 'win' : 'wins'})
           </p>
         )}
       </div>
