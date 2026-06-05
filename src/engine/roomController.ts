@@ -14,6 +14,8 @@ import type {
   RoundResultsMsg,
   SessionEnd,
   Snapshot,
+  TargetingPick,
+  TargetingStart,
 } from '../lib/protocol'
 import type {
   EngineSnapshot,
@@ -23,26 +25,38 @@ import type {
   RankRow,
   SipRow,
   Standing,
+  TargetingState,
 } from '../lib/types'
 import type { Identity } from '../lib/identity'
 import { loadRoomSips, saveRoomSips } from '../lib/identity'
 import { electHost } from '../lib/hostElection'
-import { rankScores, assignSips } from '../lib/scoring'
+import { rankScores, assignSips, tallyVotes } from '../lib/scoring'
 import { ALL_GAME_IDS, GAMES_BY_ID, pickNextGame } from '../games/registry'
 import type { MicroGame } from '../games/types'
+import { TWISTS_BY_ID, TWIST_HARD_CAP, pickTwist } from '../games/twists'
 import { randomSeed } from '../lib/rng'
 
 const INTRO_MS = 3200
 const COUNT_MS = 3000
 const COLLECT_GRACE_MS = 6000
 const RESULTS_DWELL_MS = 4800
+const TARGETING_MS = 8000
 const LEADERBOARD_DWELL_MS = 6500
 const HOST_GONE_GRACE_MS = 2500
 const SNAPSHOT_INTERVAL_MS = 10000
+/** Hot-streak immunity kicks in at this many consecutive wins. */
+const STREAK_IMMUNITY_AT = 3
 
 type Timer = ReturnType<typeof setTimeout>
 
-const MID_ROUND_PHASES = ['roundIntro', 'countdown', 'playing', 'collecting', 'roundResults']
+const MID_ROUND_PHASES = [
+  'roundIntro',
+  'countdown',
+  'playing',
+  'collecting',
+  'roundResults',
+  'targeting',
+]
 
 export class RoomController {
   private channel: RoomChannel
@@ -53,7 +67,8 @@ export class RoomController {
   private myJoinOrder = 500 + Math.floor(Math.random() * 400)
   private seq = 0
   private lastSeenSeq = -1
-  private roundResults = new Map<string, { score: number; valid: boolean }>()
+  private roundResults = new Map<string, { score: number; valid: boolean; targetId?: string }>()
+  private targetingPick: { from: string; targetId: string } | null = null
   private myCumulativeSips = 0
   private sessionStartedAt = 0
   private isHost = false
@@ -175,14 +190,28 @@ export class RoomController {
     this.beginRound(1)
   }
 
-  submitResult(score: number, valid: boolean) {
+  submitResult(score: number, valid: boolean, targetId?: string) {
     if (this.snap.gameId == null) return
-    const payload: ResultMsg = { round: this.snap.round, gameId: this.snap.gameId, score, valid }
+    const payload: ResultMsg = {
+      round: this.snap.round,
+      gameId: this.snap.gameId,
+      score,
+      valid,
+      ...(targetId ? { targetId } : {}),
+    }
     // Optimistic "waiting" first, so an immediate finalize (solo / last to submit)
     // can override it with the results view rather than being clobbered by it.
     this.setView('waiting')
     if (this.isHost) this.handleResult(this.ident.id, payload)
     else this.channel.broadcast(envelope('result', this.ident.id, payload))
+  }
+
+  submitTargetPick(targetId: string) {
+    if (this.snap.phase !== 'targeting') return
+    const payload: TargetingPick = { round: this.snap.round, targetId }
+    this.setView('waiting')
+    if (this.isHost) this.handleTargetingPick(this.ident.id, payload)
+    else this.channel.broadcast(envelope('targeting_pick', this.ident.id, payload))
   }
 
   sendEmote(emoji: string) {
@@ -245,14 +274,15 @@ export class RoomController {
     for (const p of ordered) this.joinOrder.set(p.id, this.nextJoinOrder++)
     this.myJoinOrder = this.joinOrder.get(this.ident.id) ?? 0
 
-    const winsM = new Map(this.snap.standings.map((s) => [s.id, s.wins ?? 0]))
+    const prev = new Map(this.snap.standings.map((s) => [s.id, s]))
     const m = new Map<string, number>()
     this.snap.standings.forEach((s) => m.set(s.id, s.cumulativeSips))
     this.presences.forEach((p) => m.set(p.id, Math.max(m.get(p.id) ?? 0, p.cumulativeSips ?? 0)))
     this.snap.standings = [...m].map(([id, cumulativeSips]) => ({
+      ...prev.get(id),
       id,
       cumulativeSips,
-      wins: winsM.get(id) ?? 0,
+      wins: prev.get(id)?.wins ?? 0,
     }))
     this.snap.hostId = this.ident.id
     if (MID_ROUND_PHASES.includes(this.snap.phase)) {
@@ -285,14 +315,16 @@ export class RoomController {
   private beginRound(round: number) {
     const seed = randomSeed()
     const game = pickNextGame(this.snap.settings.enabledGameIds, this.snap.recentGameIds, seed)
-    const power = round % 4 === 0 // every 4th round is double stakes
+    const twist = pickTwist(round, seed)
     this.snap.round = round
     this.snap.gameId = game.id
     this.snap.roundSeed = seed
-    this.snap.power = power
+    this.snap.twistId = twist.id
+    this.snap.targeting = null
     this.snap.recentGameIds = [...this.snap.recentGameIds, game.id].slice(-4)
     this.snap.phase = 'roundIntro'
     this.roundResults.clear()
+    this.targetingPick = null
     this.broadcastState('round_intro', {
       round,
       gameId: game.id,
@@ -300,7 +332,7 @@ export class RoomController {
       title: game.title,
       instructions: game.tagline,
       introMs: INTRO_MS,
-      power,
+      twistId: twist.id,
     } satisfies RoundIntro)
     this.localEnterIntro(game, seed)
     this.refereeTimer = this.setT(INTRO_MS, () => this.hostStartCountdown(round, game, seed))
@@ -314,7 +346,7 @@ export class RoomController {
       roundSeed: seed,
       countMs: COUNT_MS,
       playMs: game.playMs,
-      power: this.snap.power,
+      twistId: this.snap.twistId,
     } satisfies Countdown)
     this.localStartCountdown(game, seed, COUNT_MS, game.playMs)
     this.refereeTimer = this.setT(COUNT_MS + game.playMs + COLLECT_GRACE_MS, () =>
@@ -325,7 +357,7 @@ export class RoomController {
   private handleResult(from: string, p: ResultMsg) {
     if (!this.isHost || p.round !== this.snap.round) return
     if (this.roundResults.has(from)) return
-    this.roundResults.set(from, { score: p.score, valid: p.valid })
+    this.roundResults.set(from, { score: p.score, valid: p.valid, targetId: p.targetId })
     const roster = this.buildRoster()
     this.patch({ submittedCount: this.roundResults.size, activeCount: roster.length })
     if (roster.every((pl) => this.roundResults.has(pl.id))) {
@@ -336,46 +368,151 @@ export class RoomController {
 
   private finalizeRound(round: number, game: MicroGame) {
     if (!this.isHost || this.snap.round !== round) return
-    if (this.snap.phase === 'roundResults' || this.snap.phase === 'leaderboard') return
+    if (['roundResults', 'targeting', 'leaderboard'].includes(this.snap.phase)) return
     this.clearRefereeTimer()
     const roster = this.buildRoster()
-    const scores = roster.map((p) => {
-      const r = this.roundResults.get(p.id)
-      return { id: p.id, score: r ? r.score : 0, valid: r ? r.valid : false }
-    })
-    const ranking = rankScores(scores, game.direction === 'higher')
+    // Vote games tally votes (most-voted drinks); solo games rank a number.
+    const ranking =
+      game.kind === 'vote'
+        ? tallyVotes(roster, this.roundResults)
+        : rankScores(
+            roster.map((p) => {
+              const r = this.roundResults.get(p.id)
+              return { id: p.id, score: r ? r.score : 0, valid: r ? r.valid : false }
+            }),
+            game.direction === 'higher',
+          )
     const base = assignSips(ranking, this.snap.settings.maxSipsPerRound)
-    // Power round doubles sips, hard-capped at 5 for safety.
-    const sips = this.snap.power
-      ? base.map((s) => ({ id: s.id, sips: s.sips > 0 ? Math.min(5, s.sips * 2) : 0 }))
-      : base
+    const twist = TWISTS_BY_ID[this.snap.twistId] ?? TWISTS_BY_ID.none
+    const twisted = twist.apply({
+      ranking,
+      base,
+      cap: this.snap.settings.maxSipsPerRound,
+      hardCap: TWIST_HARD_CAP,
+    })
+    // Hot-streak immunity: a player who came into this round on a 3+ win streak
+    // has their first owed sips this round waived (and the streak then breaks).
+    const prevStreak = new Map(this.snap.standings.map((s) => [s.id, s.streak ?? 0]))
+    const sips = twisted.map((s) =>
+      s.sips > 0 && (prevStreak.get(s.id) ?? 0) >= STREAK_IMMUNITY_AT ? { id: s.id, sips: 0 } : s,
+    )
+
     const m = new Map(this.snap.standings.map((s) => [s.id, s.cumulativeSips]))
     for (const sr of sips) m.set(sr.id, (m.get(sr.id) ?? 0) + sr.sips)
     const winsMap = new Map(this.snap.standings.map((s) => [s.id, s.wins ?? 0]))
-    const topValid = ranking.find((r) => r.valid)
-    if (topValid) winsMap.set(topValid.id, (winsMap.get(topValid.id) ?? 0) + 1)
+    const streakMap = new Map(prevStreak)
+    const bestMap = new Map(this.snap.standings.map((s) => [s.id, s.bestStreak ?? 0]))
+    // Wins and streaks only move on skill (solo) rounds; vote rounds leave them be.
+    if (game.kind !== 'vote') {
+      const topValid = ranking.find((r) => r.valid)
+      if (topValid) {
+        winsMap.set(topValid.id, (winsMap.get(topValid.id) ?? 0) + 1)
+        for (const r of ranking) {
+          if (r.id === topValid.id) {
+            const ns = (streakMap.get(r.id) ?? 0) + 1
+            streakMap.set(r.id, ns)
+            bestMap.set(r.id, Math.max(bestMap.get(r.id) ?? 0, ns))
+          } else {
+            streakMap.set(r.id, 0)
+          }
+        }
+      }
+    }
+    const givenMap = new Map(this.snap.standings.map((s) => [s.id, s.sipsGiven ?? 0]))
+    const recvMap = new Map(this.snap.standings.map((s) => [s.id, s.sipsReceived ?? 0]))
     // Union of everyone ever seen, so a momentary presence blip never drops a player.
     const ids = new Set<string>([...m.keys(), ...roster.map((p) => p.id)])
     this.snap.standings = [...ids].map((id) => ({
       id,
       cumulativeSips: m.get(id) ?? 0,
       wins: winsMap.get(id) ?? 0,
+      streak: streakMap.get(id) ?? 0,
+      bestStreak: bestMap.get(id) ?? 0,
+      sipsGiven: givenMap.get(id) ?? 0,
+      sipsReceived: recvMap.get(id) ?? 0,
     }))
-    this.snap.lastRound = { round, gameId: game.id, ranking, sips }
+    this.snap.lastRound = { round, gameId: game.id, ranking, sips, twistId: this.snap.twistId }
     this.snap.phase = 'roundResults'
     this.broadcastState('round_results', {
       round,
       gameId: game.id,
       ranking,
       sips,
+      twistId: this.snap.twistId,
     } satisfies RoundResultsMsg)
+    this.applyRoundResults(round, game.id, ranking, sips, this.snap.twistId)
+    this.refereeTimer = this.setT(RESULTS_DWELL_MS, () => this.afterResults(round, game, ranking))
+  }
+
+  // ---------- targeting (winner hands out sips) ----------
+  private afterResults(round: number, game: MicroGame, ranking: RankRow[]) {
+    if (!this.isHost || this.snap.round !== round) return
+    if (game.kind === 'vote') return this.hostFinishToLeaderboard(round)
+    const assigner = ranking.find((r) => r.valid)
+    const roster = this.buildRoster()
+    const candidateIds = roster.filter((p) => p.id !== assigner?.id).map((p) => p.id)
+    // Need a real choice (3+ players); otherwise it's just piling on the loser.
+    if (!assigner || candidateIds.length < 2) return this.hostFinishToLeaderboard(round)
+    this.hostStartTargeting(round, assigner.id, candidateIds)
+  }
+
+  private hostStartTargeting(round: number, assignerId: string, candidateIds: string[]) {
+    const bonus = this.snap.twistId === 'power' ? 2 : 1
+    this.targetingPick = null
+    const targeting: TargetingState = { assignerId, candidateIds, bonus }
+    this.snap.targeting = targeting
+    this.snap.phase = 'targeting'
+    this.broadcastState('targeting_start', {
+      round,
+      assignerId,
+      candidateIds,
+      bonus,
+      deadlineMs: TARGETING_MS,
+    } satisfies TargetingStart)
+    this.applyTargetingStart(targeting)
+    this.refereeTimer = this.setT(TARGETING_MS, () => this.resolveTargeting(round))
+  }
+
+  private handleTargetingPick(from: string, p: TargetingPick) {
+    if (!this.isHost || p.round !== this.snap.round || this.snap.phase !== 'targeting') return
+    const tg = this.snap.targeting
+    if (!tg || from !== tg.assignerId || !tg.candidateIds.includes(p.targetId)) return
+    if (this.targetingPick) return // first pick wins
+    this.targetingPick = { from, targetId: p.targetId }
+    this.resolveTargeting(this.snap.round)
+  }
+
+  private resolveTargeting(round: number) {
+    if (!this.isHost || this.snap.round !== round || this.snap.phase !== 'targeting') return
+    this.clearRefereeTimer()
+    const tg = this.snap.targeting
+    const targetId = this.targetingPick?.targetId ?? null // timeout -> no pick -> skip
+    if (targetId && tg) {
+      const add = Math.min(tg.bonus, TWIST_HARD_CAP)
+      this.snap.standings = this.snap.standings.map((s) => {
+        if (s.id === targetId) {
+          return {
+            ...s,
+            cumulativeSips: s.cumulativeSips + add,
+            sipsReceived: (s.sipsReceived ?? 0) + add,
+          }
+        }
+        if (s.id === tg.assignerId) return { ...s, sipsGiven: (s.sipsGiven ?? 0) + add }
+        return s
+      })
+    }
+    this.hostFinishToLeaderboard(round)
+  }
+
+  private hostFinishToLeaderboard(round: number) {
+    if (!this.isHost) return
+    this.snap.targeting = null
     this.broadcastState('leaderboard', {
       standings: this.snap.standings,
       roundsPlayed: round,
     } satisfies LeaderboardMsg)
-    this.applyRoundResults(round, game.id, ranking, sips)
     this.applyLeaderboard(this.snap.standings)
-    this.refereeTimer = this.setT(RESULTS_DWELL_MS, () => this.hostShowLeaderboard(round))
+    this.hostShowLeaderboard(round)
   }
 
   private hostShowLeaderboard(round: number) {
@@ -436,6 +573,10 @@ export class RoomController {
       if (this.isHost) this.handleResult(env.from, env.p as ResultMsg)
       return
     }
+    if (env.t === 'targeting_pick') {
+      if (this.isHost) this.handleTargetingPick(env.from, env.p as TargetingPick)
+      return
+    }
 
     // Remaining are host-to-all state events; only non-hosts apply, with dedupe.
     if (this.isHost) return
@@ -455,9 +596,12 @@ export class RoomController {
         break
       case 'round_results': {
         const m = env.p as RoundResultsMsg
-        this.applyRoundResults(m.round, m.gameId, m.ranking, m.sips)
+        this.applyRoundResults(m.round, m.gameId, m.ranking, m.sips, m.twistId)
         break
       }
+      case 'targeting_start':
+        this.applyTargetingStart(env.p as TargetingStart)
+        break
       case 'leaderboard':
         this.applyLeaderboard((env.p as LeaderboardMsg).standings)
         break
@@ -493,7 +637,8 @@ export class RoomController {
     this.snap.round = p.round
     this.snap.gameId = p.gameId
     this.snap.roundSeed = p.roundSeed
-    this.snap.power = p.power
+    this.snap.twistId = p.twistId
+    this.snap.targeting = null
     this.snap.phase = 'roundIntro'
     this.localEnterIntro(game, p.roundSeed)
   }
@@ -504,18 +649,33 @@ export class RoomController {
     this.snap.round = p.round
     this.snap.gameId = p.gameId
     this.snap.roundSeed = p.roundSeed
-    this.snap.power = p.power
+    this.snap.twistId = p.twistId
     this.snap.phase = 'countdown'
     this.localStartCountdown(game, p.roundSeed, p.countMs, p.playMs)
   }
 
-  private applyRoundResults(round: number, gameId: string, ranking: RankRow[], sips: SipRow[]) {
-    this.snap.lastRound = { round, gameId, ranking, sips }
+  private applyRoundResults(
+    round: number,
+    gameId: string,
+    ranking: RankRow[],
+    sips: SipRow[],
+    twistId: string,
+  ) {
+    this.snap.lastRound = { round, gameId, ranking, sips, twistId }
+    this.snap.twistId = twistId
     this.snap.phase = 'roundResults'
     this.clearLocalTimer()
     const mine = sips.find((s) => s.id === this.ident.id)
     this.pushSnapshot()
     this.patch({ view: 'roundResults', mySips: mine ? mine.sips : 0, play: null })
+  }
+
+  private applyTargetingStart(tg: TargetingState) {
+    this.snap.phase = 'targeting'
+    this.snap.targeting = tg
+    this.clearLocalTimer()
+    this.pushSnapshot()
+    this.setView('targeting')
   }
 
   private applyLeaderboard(standings: Standing[]) {
@@ -548,6 +708,7 @@ export class RoomController {
   private syncHostView() {
     const ph = this.snap.phase
     if (ph === 'lobby') this.setView('lobby')
+    else if (ph === 'targeting') this.setView('targeting')
     else if (ph === 'leaderboard') this.setView('leaderboard')
     else if (ph === 'ended') this.setView('ended')
   }
@@ -556,6 +717,7 @@ export class RoomController {
     const ph = this.snap.phase
     const st = useRoomStore.getState()
     if (ph === 'lobby') this.setView('lobby')
+    else if (ph === 'targeting') this.setView('targeting')
     else if (ph === 'leaderboard') this.setView('leaderboard')
     else if (ph === 'ended') this.setView('ended')
     else if (ph === 'roundResults') this.setView('roundResults')

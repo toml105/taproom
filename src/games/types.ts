@@ -8,6 +8,14 @@ export type GameCategory =
   | 'focus'
   | 'motor'
   | 'knowledge'
+  | 'social'
+
+/** A fellow player a vote-game can target. */
+export interface VoteCandidate {
+  id: string
+  name: string
+  emoji: string
+}
 
 /** Everything a micro-game needs to run locally and report one number. */
 export interface MicroGameContext {
@@ -18,6 +26,10 @@ export interface MicroGameContext {
   handicap: boolean
   /** Submit exactly once when the attempt ends. */
   submit: (result: { score: number; valid: boolean }) => void
+  /** Vote games only: the other players, ordered, that can be voted for. */
+  candidates?: VoteCandidate[]
+  /** Vote games only: cast a vote for another player (encodes into submit). */
+  submitVote?: (targetId: string) => void
 }
 
 /**
@@ -31,6 +43,8 @@ export interface MicroGame {
   /** One-line how-to shown on the round intro. */
   tagline: string
   category: GameCategory
+  /** 'vote' games tally votes for other players; default 'solo'. */
+  kind?: 'solo' | 'vote'
   direction: ScoreDirection
   /** Approx play time; the host uses it to size the result-collection window. */
   playMs: number

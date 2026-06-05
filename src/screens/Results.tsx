@@ -6,6 +6,7 @@ import { EmoteBar } from '../components/Emote'
 import { useRoomStore } from '../store/useRoomStore'
 import { getController } from '../hooks/useRoom'
 import { GAMES_BY_ID } from '../games/registry'
+import { TWISTS_BY_ID } from '../games/twists'
 import type { PublicPlayer } from '../lib/types'
 
 function byId(players: PublicPlayer[]): Record<string, PublicPlayer> {
@@ -28,11 +29,18 @@ export function RoundResults() {
   const game = lr ? GAMES_BY_ID[lr.gameId] : undefined
   const myRank = lr?.ranking.find((r) => r.id === selfId)?.rank
   const soft = snapshot.players.find((p) => p.id === selfId)?.soft ?? false
+  const twist = lr?.twistId ? TWISTS_BY_ID[lr.twistId] : undefined
   const [skipped, setSkipped] = useState(false)
 
   return (
     <Screen className="px-6">
       <div className="flex flex-1 flex-col items-center justify-center text-center">
+        {twist && twist.id !== 'none' && (
+          <p className="mb-1 font-display text-[11px] tracking-[0.25em] text-neon-pink">
+            {twist.badge ? `${twist.badge} ` : ''}
+            {twist.label.toUpperCase()}
+          </p>
+        )}
         <p className="font-display text-[11px] tracking-[0.3em] text-ink-low">
           YOU PLACED {ordinal(myRank)}
         </p>
@@ -136,11 +144,16 @@ export function Leaderboard({ onLeave }: { onLeave: () => void }) {
       <div className="mt-5 flex-1 space-y-2 overflow-auto">
         {standings.map((s, i) => {
           const p = players[s.id]
+          const onFire = (s.streak ?? 0) >= 3
           return (
             <PlayerChip
               key={s.id}
               rank={i + 1}
-              name={(p?.name ?? 'Player') + (s.id === selfId ? ' (you)' : '')}
+              name={
+                (p?.name ?? 'Player') +
+                (s.id === selfId ? ' (you)' : '') +
+                (onFire ? ` 🔥${s.streak}` : '')
+              }
               emoji={i === 0 ? '👑' : (p?.emoji ?? '🎮')}
               sips={s.cumulativeSips}
               highlight={i === 0}
@@ -184,6 +197,10 @@ export function EndAwards({ onLeave }: { onLeave: () => void }) {
   const winner = standings[0]
   const lush = standings.length > 1 ? standings[standings.length - 1] : undefined
   const mvp = [...standings].sort((a, b) => (b.wins ?? 0) - (a.wins ?? 0))[0]
+  const streaker = [...standings].sort((a, b) => (b.bestStreak ?? 0) - (a.bestStreak ?? 0))[0]
+  const kingmaker = [...standings].sort((a, b) => (b.sipsGiven ?? 0) - (a.sipsGiven ?? 0))[0]
+  const marked = [...standings].sort((a, b) => (b.sipsReceived ?? 0) - (a.sipsReceived ?? 0))[0]
+  const nm = (id?: string) => players[id ?? '']?.name ?? 'Player'
 
   return (
     <Screen className="px-6 text-center">
@@ -201,8 +218,22 @@ export function EndAwards({ onLeave }: { onLeave: () => void }) {
         )}
         {mvp && (mvp.wins ?? 0) > 0 && (
           <p className="mt-2 text-sm text-ink-low">
-            🏆 MVP: {players[mvp.id]?.name ?? 'Player'} ({mvp.wins} round{' '}
-            {mvp.wins === 1 ? 'win' : 'wins'})
+            🏆 MVP: {nm(mvp.id)} ({mvp.wins} round {mvp.wins === 1 ? 'win' : 'wins'})
+          </p>
+        )}
+        {streaker && (streaker.bestStreak ?? 0) >= 3 && (
+          <p className="mt-2 text-sm text-ink-low">
+            🔥 Hot Streak: {nm(streaker.id)} ({streaker.bestStreak} in a row)
+          </p>
+        )}
+        {kingmaker && (kingmaker.sipsGiven ?? 0) > 0 && (
+          <p className="mt-2 text-sm text-ink-low">
+            👑 Kingmaker: {nm(kingmaker.id)} (handed out {kingmaker.sipsGiven})
+          </p>
+        )}
+        {marked && (marked.sipsReceived ?? 0) > 0 && marked.id !== winner?.id && (
+          <p className="mt-2 text-sm text-ink-low">
+            🎯 Marked: {nm(marked.id)} (took {marked.sipsReceived} handed sips)
           </p>
         )}
       </div>

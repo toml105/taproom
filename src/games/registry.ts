@@ -13,6 +13,9 @@ import { flags } from './flags'
 import { trueFalse } from './trueFalse'
 import { finishSaying } from './finishSaying'
 import { guessYear } from './guessYear'
+import { quickMaths } from './quickMaths'
+import { spotIt } from './spotIt'
+import { mostLikely } from './mostLikely'
 
 export const GAMES: MicroGame[] = [
   trivia,
@@ -28,6 +31,9 @@ export const GAMES: MicroGame[] = [
   guessYear,
   stroop,
   echo,
+  quickMaths,
+  spotIt,
+  mostLikely,
 ]
 
 export const GAMES_BY_ID: Record<string, MicroGame> = Object.fromEntries(
@@ -44,6 +50,7 @@ export const PACKS: { key: string; label: string; ids: string[] }[] = [
   { key: 'all', label: 'Everything', ids: ALL_GAME_IDS },
   { key: 'brains', label: 'Brains', ids: byCat(['knowledge', 'memory', 'focus']) },
   { key: 'reflexes', label: 'Reflexes', ids: byCat(['reflex', 'precision', 'motor', 'focus']) },
+  { key: 'social', label: 'Social', ids: byCat(['social', 'knowledge', 'reflex']) },
 ]
 
 /** Pick the next game, avoiding the last couple played. Seeded for determinism. */

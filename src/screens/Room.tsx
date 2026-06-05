@@ -4,6 +4,7 @@ import { EmoteLayer } from '../components/Emote'
 import { Lobby } from './Lobby'
 import { RoundIntro, Countdown, PlayScreen, Waiting } from './Round'
 import { RoundResults, Leaderboard, EndAwards } from './Results'
+import { Targeting } from './Targeting'
 
 function Connecting({ code }: { code: string }) {
   return (
@@ -45,6 +46,9 @@ export function Room({
       break
     case 'roundResults':
       content = <RoundResults />
+      break
+    case 'targeting':
+      content = <Targeting />
       break
     case 'leaderboard':
       content = <Leaderboard onLeave={onLeave} />

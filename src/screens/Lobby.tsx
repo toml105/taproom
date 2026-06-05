@@ -47,7 +47,7 @@ export function Lobby() {
           <div className="space-y-3 rounded-2xl border border-line/60 bg-panel/40 p-3">
             <div>
               <p className="mb-1.5 text-[11px] uppercase tracking-wide text-ink-low">Game pack</p>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {PACKS.map((p) => (
                   <button
                     key={p.key}

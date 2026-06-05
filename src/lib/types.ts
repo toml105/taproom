@@ -7,6 +7,7 @@ export type Phase =
   | 'playing'
   | 'collecting'
   | 'roundResults'
+  | 'targeting'
   | 'leaderboard'
   | 'ended'
 
@@ -39,6 +40,21 @@ export interface Standing {
   id: string
   cumulativeSips: number
   wins?: number
+  /** Consecutive round wins; reset to 0 the round a player doesn't win. */
+  streak?: number
+  /** Best streak achieved this session. */
+  bestStreak?: number
+  /** Bonus sips this player handed out via the targeting phase. */
+  sipsGiven?: number
+  /** Bonus sips handed onto this player via the targeting phase. */
+  sipsReceived?: number
+}
+
+/** State for the "winner hands out sips" phase. */
+export interface TargetingState {
+  assignerId: string
+  candidateIds: string[]
+  bonus: number
 }
 
 export interface RankRow {
@@ -58,6 +74,7 @@ export interface RoundResult {
   gameId: string
   ranking: RankRow[] // best first
   sips: SipRow[]
+  twistId?: string
 }
 
 export interface GameSettings {
@@ -89,7 +106,8 @@ export interface EngineSnapshot {
   round: number
   gameId: string | null
   roundSeed: number | null
-  power: boolean
+  twistId: string
+  targeting: TargetingState | null
   hostId: string
   roomCode: string
   players: PublicPlayer[]

@@ -12,6 +12,7 @@ export type View =
   | 'playing'
   | 'waiting'
   | 'roundResults'
+  | 'targeting'
   | 'leaderboard'
   | 'ended'
 
@@ -22,7 +23,8 @@ export function emptySnapshot(roomCode = '', hostId = ''): EngineSnapshot {
     round: 0,
     gameId: null,
     roundSeed: null,
-    power: false,
+    twistId: 'none',
+    targeting: null,
     hostId,
     roomCode,
     players: [],

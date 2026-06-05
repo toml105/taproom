@@ -20,6 +20,8 @@ export type EventType =
   | 'countdown'
   | 'result'
   | 'round_results'
+  | 'targeting_start'
+  | 'targeting_pick'
   | 'leaderboard'
   | 'session_end'
   | 'snapshot'
@@ -48,7 +50,7 @@ export interface RoundIntro {
   title: string
   instructions: string
   introMs: number
-  power: boolean
+  twistId: string
 }
 export interface Countdown {
   round: number
@@ -56,19 +58,33 @@ export interface Countdown {
   roundSeed: number
   countMs: number
   playMs: number
-  power: boolean
+  twistId: string
 }
 export interface ResultMsg {
   round: number
   gameId: string
   score: number
   valid: boolean
+  /** Vote-game only: the player this voter chose. */
+  targetId?: string
 }
 export interface RoundResultsMsg {
   round: number
   gameId: string
   ranking: RankRow[]
   sips: SipRow[]
+  twistId: string
+}
+export interface TargetingStart {
+  round: number
+  assignerId: string
+  candidateIds: string[]
+  bonus: number
+  deadlineMs: number
+}
+export interface TargetingPick {
+  round: number
+  targetId: string
 }
 export interface LeaderboardMsg {
   standings: Standing[]
