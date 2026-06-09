@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>SVG Physics Lab — three.js</title>
+<meta name="description" content="Interactive 3D physics playground: SVG glyphs extruded into rigid bodies, rendered with three.js. Drag, fling, collide — watch energy conservation in real time." />
+<style>
+  :root {
+    --bg: #05070f;
+    --panel: rgba(13, 18, 34, 0.72);
+    --line: rgba(120, 160, 255, 0.16);
+    --text: #e8edf8;
+    --dim: #8a96b8;
+    --accent: #4cc9f0;
+    --accent2: #ff4d8d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; background: var(--bg); }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+    touch-action: none;
+  }
+  #scene { position: fixed; inset: 0; display: block; }
+  .panel {
+    position: fixed;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+    z-index: 10;
+  }
+  #hud-title {
+    top: 18px; left: 18px;
+    padding: 14px 18px 12px;
+    max-width: 320px;
+  }
+  #hud-title h1 {
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    white-space: nowrap;
+  }
+  #hud-title p {
+    margin-top: 5px;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--dim);
+  }
+  #hud-title kbd {
+    font-family: ui-monospace, monospace;
+    font-size: 10px;
+    color: var(--text);
+    background: rgba(255,255,255,0.07);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+  #hud-stats {
+    top: 18px; right: 18px;
+    padding: 12px 16px;
+    width: 232px;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11.5px;
+  }
+  #hud-stats h2 {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: var(--dim);
+    margin-bottom: 8px;
+  }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 2.5px 0;
+  }
+  .stat-row .k { color: var(--dim); }
+  .stat-row .v { color: var(--text); font-weight: 600; }
+  .stat-row .v.accent { color: var(--accent); }
+  #spark {
+    display: block;
+    width: 100%;
+    height: 42px;
+    margin-top: 8px;
+    border-top: 1px solid var(--line);
+    padding-top: 6px;
+  }
+  #spark-label {
+    font-size: 9.5px;
+    letter-spacing: 0.14em;
+    color: var(--dim);
+    margin-top: 6px;
+    text-align: right;
+  }
+  #hud-controls {
+    bottom: 18px; left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 18px;
+    display: flex;
+    gap: 22px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: calc(100vw - 24px);
+  }
+  .ctl { display: flex; flex-direction: column; gap: 4px; }
+  .ctl label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: var(--dim);
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .ctl label output { color: var(--accent); font-family: ui-monospace, monospace; }
+  input[type="range"] {
+    width: 130px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+  .btns { display: flex; gap: 8px; }
+  button {
+    font: 700 11px/1 ui-sans-serif, system-ui, sans-serif;
+    letter-spacing: 0.1em;
+    color: var(--text);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+  }
+  button:hover { background: rgba(120,160,255,0.16); }
+  button:active { transform: scale(0.96); }
+  button.toggled { background: rgba(76,201,240,0.22); border-color: var(--accent); }
+  #loader {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 16px;
+    background: var(--bg);
+    z-index: 100;
+    transition: opacity 0.6s;
+  }
+  #loader.done { opacity: 0; pointer-events: none; }
+  #loader .ring {
+    width: 42px; height: 42px;
+    border: 3px solid var(--line);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+  }
+  #loader span { font-size: 12px; letter-spacing: 0.22em; color: var(--dim); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @media (max-width: 720px) {
+    #hud-title { max-width: 250px; }
+    #hud-title p { display: none; }
+    #hud-stats { display: none; }
+  }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+
+<div id="loader">
+  <div class="ring"></div>
+  <span>COMPILING UNIVERSE</span>
+</div>
+
+<div class="panel" id="hud-title">
+  <h1>SVG // PHYSICS LAB</h1>
+  <p>SVG glyphs extruded into rigid bodies by three.js, simulated by a custom impulse engine. <kbd>drag</kbd> a shape to fling it · <kbd>drag</kbd> empty space to orbit · <kbd>scroll</kbd> to zoom</p>
+</div>
+
+<div class="panel" id="hud-stats">
+  <h2>TELEMETRY</h2>
+  <div class="stat-row"><span class="k">kinetic E</span><span class="v accent" id="s-ke">0.0 J</span></div>
+  <div class="stat-row"><span class="k">potential E</span><span class="v" id="s-pe">0.0 J</span></div>
+  <div class="stat-row"><span class="k">total E</span><span class="v" id="s-te">0.0 J</span></div>
+  <div class="stat-row"><span class="k">momentum |p|</span><span class="v" id="s-p">0.0</span></div>
+  <div class="stat-row"><span class="k">collisions</span><span class="v" id="s-col">0</span></div>
+  <div class="stat-row"><span class="k">sim rate</span><span class="v" id="s-fps">— fps</span></div>
+  <canvas id="spark" width="200" height="42"></canvas>
+  <div id="spark-label">TOTAL ENERGY / 6s</div>
+</div>
+
+<div class="panel" id="hud-controls">
+  <div class="ctl">
+    <label>GRAVITY <output id="o-g">9.8</output></label>
+    <input type="range" id="r-g" min="0" max="25" step="0.1" value="9.8" />
+  </div>
+  <div class="ctl">
+    <label>BOUNCE <output id="o-e">0.65</output></label>
+    <input type="range" id="r-e" min="0" max="0.98" step="0.01" value="0.65" />
+  </div>
+  <div class="btns">
+    <button id="b-zerog">ZERO-G</button>
+    <button id="b-explode">EXPLODE</button>
+    <button id="b-reset">RESET</button>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { SVGLoader } from 'three/addons/loaders/SVGLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+/* ----------------------------------------------------------------------------
+ * The artwork: hand-authored SVG glyphs. Each becomes an extruded,
+ * beveled 3D rigid body.
+ * ------------------------------------------------------------------------- */
+const GLYPHS = [
+  {
+    name: 'star',
+    color: 0xffd166,
+    svg: 'M50 2 L61.8 33.8 L95.7 35.2 L69 56.2 L78.2 88.8 L50 70 L21.8 88.8 L31 56.2 L4.3 35.2 L38.2 33.8 Z',
+    material: { metalness: 0.95, roughness: 0.22 },
+  },
+  {
+    name: 'bolt',
+    color: 0x4cc9f0,
+    svg: 'M55 2 L20 55 L42 55 L32 98 L78 40 L54 40 Z',
+    material: { metalness: 0.6, roughness: 0.18, emissiveIntensity: 0.35 },
+  },
+  {
+    name: 'heart',
+    color: 0xff4d8d,
+    svg: 'M50 88 C16 60 4 38 14 22 C22 8 42 8 50 26 C58 8 78 8 86 22 C96 38 84 60 50 88 Z',
+    material: { metalness: 0.15, roughness: 0.12, clearcoat: 1.0, clearcoatRoughness: 0.08 },
+  },
+  {
+    name: 'hex',
+    color: 0x9d4edd,
+    svg: 'M93 50 L71.5 87.2 L28.5 87.2 L7 50 L28.5 12.8 L71.5 12.8 Z M78 50 L64 25.8 L36 25.8 L22 50 L36 74.2 L64 74.2 Z',
+    material: { metalness: 0.9, roughness: 0.3 },
+  },
+  {
+    name: 'delta',
+    color: 0x2dd4bf,
+    svg: 'M50 7 L94 84 L6 84 Z M50 38 L28 74 L72 74 Z',
+    material: { metalness: 0.5, roughness: 0.15, clearcoat: 0.8, clearcoatRoughness: 0.15 },
+  },
+];
+
+/* ----------------------------------------------------------------------------
+ * Renderer / scene
+ * ------------------------------------------------------------------------- */
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x05070f);
+scene.fog = new THREE.Fog(0x05070f, 38, 95);
+
+const camera = new THREE.PerspectiveCamera(46, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(0, 9.5, 25);
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 4.2, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.maxDistance = 60;
+controls.minDistance = 8;
+controls.maxPolarAngle = Math.PI * 0.49;
+controls.enablePan = false;
+
+/* Lights */
+const keyLight = new THREE.DirectionalLight(0xffffff, 2.4);
+keyLight.position.set(10, 22, 12);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(2048, 2048);
+keyLight.shadow.camera.left = -22;
+keyLight.shadow.camera.right = 22;
+keyLight.shadow.camera.top = 22;
+keyLight.shadow.camera.bottom = -22;
+keyLight.shadow.camera.far = 60;
+keyLight.shadow.bias = -0.0004;
+keyLight.shadow.radius = 6;
+scene.add(keyLight);
+
+const rim = new THREE.DirectionalLight(0x4c6fff, 1.0);
+rim.position.set(-14, 8, -10);
+scene.add(rim);
+
+const fill = new THREE.PointLight(0xff4d8d, 24, 40, 1.8);
+fill.position.set(0, 3, -8);
+scene.add(fill);
+
+/* Floor: dark polished slab */
+const floor = new THREE.Mesh(
+  new THREE.CircleGeometry(46, 72),
+  new THREE.MeshPhysicalMaterial({
+    color: 0x0a0f1e,
+    metalness: 0.85,
+    roughness: 0.32,
+    envMapIntensity: 0.9,
+  })
+);
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+const grid = new THREE.GridHelper(92, 46, 0x24365e, 0x131d36);
+grid.material.transparent = true;
+grid.material.opacity = 0.4;
+grid.position.y = 0.01;
+scene.add(grid);
+
+/* Glow ring marking the arena boundary */
+const ARENA = { x: 12, z: 7.5, top: 24 };
+const ring = new THREE.Mesh(
+  new THREE.TorusGeometry(15.5, 0.06, 12, 128),
+  new THREE.MeshBasicMaterial({ color: 0x4cc9f0 })
+);
+ring.rotation.x = Math.PI / 2;
+ring.position.y = 0.04;
+scene.add(ring);
+
+/* Starfield */
+{
+  const N = 900;
+  const pos = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    const r = 60 + Math.random() * 70;
+    const th = Math.random() * Math.PI * 2;
+    const ph = Math.acos(2 * Math.random() - 1);
+    pos[i * 3] = r * Math.sin(ph) * Math.cos(th);
+    pos[i * 3 + 1] = Math.abs(r * Math.cos(ph)) * 0.8 + 2;
+    pos[i * 3 + 2] = r * Math.sin(ph) * Math.sin(th);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const stars = new THREE.Points(g, new THREE.PointsMaterial({
+    color: 0x7c93c9, size: 0.16, sizeAttenuation: true,
+    transparent: true, opacity: 0.85, depthWrite: false,
+  }));
+  scene.add(stars);
+}
+
+/* Post-processing: subtle bloom */
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight), 0.38, 0.55, 0.82
+);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+/* ----------------------------------------------------------------------------
+ * Build rigid bodies from the SVG glyphs
+ * ------------------------------------------------------------------------- */
+const loader = new SVGLoader();
+const bodies = [];
+
+function buildGlyph(def, index) {
+  const svgDoc = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="${def.svg}"/></svg>`;
+  const { paths } = loader.parse(svgDoc);
+  const shapes = paths.flatMap((p) => SVGLoader.createShapes(p));
+
+  const geometry = new THREE.ExtrudeGeometry(shapes, {
+    depth: 16,
+    bevelEnabled: true,
+    bevelThickness: 3.2,
+    bevelSize: 2.6,
+    bevelSegments: 5,
+    curveSegments: 24,
+  });
+  // SVG space is y-down and 100 units wide; flip into y-up world space and
+  // shrink to scene scale. DoubleSide below compensates for the mirrored winding.
+  geometry.scale(0.034, -0.034, 0.034);
+  geometry.center();
+  geometry.computeBoundingSphere();
+
+  const material = new THREE.MeshPhysicalMaterial({
+    color: def.color,
+    emissive: def.color,
+    emissiveIntensity: def.material.emissiveIntensity ?? 0.12,
+    metalness: def.material.metalness ?? 0.5,
+    roughness: def.material.roughness ?? 0.25,
+    clearcoat: def.material.clearcoat ?? 0,
+    clearcoatRoughness: def.material.clearcoatRoughness ?? 0.1,
+    envMapIntensity: 1.4,
+    side: THREE.DoubleSide,
+  });
+
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  scene.add(mesh);
+
+  const radius = geometry.boundingSphere.radius * 0.88; // glyphs aren't full spheres
+  const mass = radius * radius * radius;
+  const body = {
+    name: def.name,
+    mesh,
+    pos: new THREE.Vector3(),
+    vel: new THREE.Vector3(),
+    angVel: new THREE.Vector3(),
+    quat: new THREE.Quaternion(),
+    radius,
+    mass,
+    invMass: 1 / mass,
+    inertia: 0.4 * mass * radius * radius,
+    homeIndex: index,
+  };
+  bodies.push(body);
+  return body;
+}
+
+GLYPHS.forEach(buildGlyph);
+
+function resetBodies() {
+  bodies.forEach((b, i) => {
+    const a = (i / bodies.length) * Math.PI * 2 + 0.5;
+    b.pos.set(Math.cos(a) * 5.5, 6 + (i % 3) * 3.2, Math.sin(a) * 3.6);
+    b.vel.set(0, 0, 0);
+    b.angVel.set((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2);
+    b.quat.setFromEuler(new THREE.Euler(
+      Math.random() * 0.6 - 0.3, Math.random() * Math.PI * 2, Math.random() * 0.6 - 0.3
+    ));
+  });
+  collisionTotal = 0;
+}
+
+/* ----------------------------------------------------------------------------
+ * Physics: fixed-timestep impulse solver with sphere proxies
+ * ------------------------------------------------------------------------- */
+const sim = {
+  gravity: 9.8,
+  restitution: 0.65,
+  linearDamping: 0.06,
+  angularDamping: 0.25,
+};
+let collisionTotal = 0;
+let collisionWindow = 0;
+
+const FIXED_DT = 1 / 120;
+const tmpV = new THREE.Vector3();
+const tmpV2 = new THREE.Vector3();
+const tmpQ = new THREE.Quaternion();
+
+let dragged = null;
+const dragTarget = new THREE.Vector3();
+
+function integrate(b, dt) {
+  if (b === dragged) {
+    // critically-damped pull toward the pointer; release inherits velocity
+    tmpV.copy(dragTarget).sub(b.pos).multiplyScalar(16);
+    b.vel.lerp(tmpV, Math.min(1, dt * 22));
+    b.angVel.multiplyScalar(Math.max(0, 1 - dt * 4));
+  } else {
+    b.vel.y -= sim.gravity * dt;
+    b.vel.multiplyScalar(Math.max(0, 1 - sim.linearDamping * dt));
+    b.angVel.multiplyScalar(Math.max(0, 1 - sim.angularDamping * dt));
+  }
+  b.pos.addScaledVector(b.vel, dt);
+
+  // dq/dt = 0.5 * ω * q
+  const h = dt * 0.5;
+  tmpQ.set(b.angVel.x * h, b.angVel.y * h, b.angVel.z * h, 0).multiply(b.quat);
+  b.quat.x += tmpQ.x; b.quat.y += tmpQ.y; b.quat.z += tmpQ.z; b.quat.w += tmpQ.w;
+  b.quat.normalize();
+}
+
+function collideBounds(b) {
+  const e = sim.restitution;
+  // floor
+  if (b.pos.y - b.radius < 0) {
+    b.pos.y = b.radius;
+    if (b.vel.y < 0) {
+      if (b.vel.y < -1.2) { collisionTotal++; collisionWindow++; }
+      b.vel.y = -b.vel.y * e;
+      // ground friction couples linear and angular motion
+      b.vel.x *= 0.97; b.vel.z *= 0.97;
+      b.angVel.x += b.vel.z * 0.25 / b.radius;
+      b.angVel.z -= b.vel.x * 0.25 / b.radius;
+      b.angVel.multiplyScalar(0.92);
+    }
+  }
+  // soft ceiling so zero-g flings stay in frame
+  if (b.pos.y + b.radius > ARENA.top && b.vel.y > 0) {
+    b.pos.y = ARENA.top - b.radius;
+    b.vel.y = -b.vel.y * e;
+  }
+  for (const axis of ['x', 'z']) {
+    const limit = ARENA[axis];
+    if (b.pos[axis] - b.radius < -limit) {
+      b.pos[axis] = -limit + b.radius;
+      if (b.vel[axis] < 0) { b.vel[axis] = -b.vel[axis] * e; if (b.vel[axis] > 1.2) collisionWindow++; }
+    } else if (b.pos[axis] + b.radius > limit) {
+      b.pos[axis] = limit - b.radius;
+      if (b.vel[axis] > 0) { b.vel[axis] = -b.vel[axis] * e; if (b.vel[axis] < -1.2) collisionWindow++; }
+    }
+  }
+}
+
+function collidePair(a, b) {
+  tmpV.copy(b.pos).sub(a.pos);
+  const dist = tmpV.length();
+  const minDist = a.radius + b.radius;
+  if (dist >= minDist || dist === 0) return;
+
+  const n = tmpV.multiplyScalar(1 / dist); // normal a -> b
+  const overlap = minDist - dist;
+  const wA = a.invMass / (a.invMass + b.invMass);
+  a.pos.addScaledVector(n, -overlap * wA);
+  b.pos.addScaledVector(n, overlap * (1 - wA));
+
+  tmpV2.copy(b.vel).sub(a.vel);
+  const vn = tmpV2.dot(n);
+  if (vn >= 0) return;
+
+  const j = -(1 + sim.restitution) * vn / (a.invMass + b.invMass);
+  a.vel.addScaledVector(n, -j * a.invMass);
+  b.vel.addScaledVector(n, j * b.invMass);
+
+  // tangential kick converts some sliding into spin
+  const vt = tmpV2.addScaledVector(n, -vn);
+  a.angVel.addScaledVector(tmpV.crossVectors(n, vt), -0.35);
+  b.angVel.addScaledVector(tmpV, 0.35);
+
+  if (-vn > 1.0) { collisionTotal++; collisionWindow++; }
+}
+
+function stepPhysics(dt) {
+  for (const b of bodies) integrate(b, dt);
+  for (let i = 0; i < bodies.length; i++) {
+    for (let j = i + 1; j < bodies.length; j++) collidePair(bodies[i], bodies[j]);
+  }
+  for (const b of bodies) collideBounds(b);
+}
+
+/* ----------------------------------------------------------------------------
+ * Pointer interaction: raycast-grab bodies, orbit otherwise
+ * ------------------------------------------------------------------------- */
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+const dragPlane = new THREE.Plane();
+
+function setPointer(ev) {
+  pointer.x = (ev.clientX / window.innerWidth) * 2 - 1;
+  pointer.y = -(ev.clientY / window.innerHeight) * 2 + 1;
+}
+
+canvas.addEventListener('pointerdown', (ev) => {
+  setPointer(ev);
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(bodies.map((b) => b.mesh), false);
+  if (hits.length > 0) {
+    dragged = bodies.find((b) => b.mesh === hits[0].object);
+    dragTarget.copy(dragged.pos);
+    dragPlane.setFromNormalAndCoplanarPoint(
+      camera.getWorldDirection(tmpV).negate(), dragged.pos
+    );
+    controls.enabled = false;
+    canvas.setPointerCapture(ev.pointerId);
+    canvas.style.cursor = 'grabbing';
+  }
+});
+
+canvas.addEventListener('pointermove', (ev) => {
+  if (!dragged) return;
+  setPointer(ev);
+  raycaster.setFromCamera(pointer, camera);
+  if (raycaster.ray.intersectPlane(dragPlane, tmpV2)) {
+    dragTarget.copy(tmpV2);
+    dragTarget.y = Math.max(dragTarget.y, dragged.radius * 0.6);
+  }
+});
+
+function endDrag() {
+  dragged = null;
+  controls.enabled = true;
+  canvas.style.cursor = '';
+}
+canvas.addEventListener('pointerup', endDrag);
+canvas.addEventListener('pointercancel', endDrag);
+
+/* ----------------------------------------------------------------------------
+ * HUD: telemetry + controls
+ * ------------------------------------------------------------------------- */
+const $ = (id) => document.getElementById(id);
+const sparkCtx = $('spark').getContext('2d');
+const energyHistory = [];
+
+function computeTelemetry() {
+  let ke = 0, pe = 0, p = 0;
+  for (const b of bodies) {
+    ke += 0.5 * b.mass * b.vel.lengthSq() + 0.5 * b.inertia * b.angVel.lengthSq();
+    pe += b.mass * sim.gravity * Math.max(0, b.pos.y - b.radius);
+    p += b.mass * b.vel.length();
+  }
+  return { ke, pe, te: ke + pe, p };
+}
+
+function drawSpark() {
+  const w = 200, h = 42;
+  sparkCtx.clearRect(0, 0, w, h);
+  if (energyHistory.length < 2) return;
+  const max = Math.max(...energyHistory, 1);
+  sparkCtx.beginPath();
+  energyHistory.forEach((v, i) => {
+    const x = (i / (energyHistory.length - 1)) * w;
+    const y = h - 3 - (v / max) * (h - 8);
+    i === 0 ? sparkCtx.moveTo(x, y) : sparkCtx.lineTo(x, y);
+  });
+  sparkCtx.strokeStyle = '#4cc9f0';
+  sparkCtx.lineWidth = 1.5;
+  sparkCtx.stroke();
+  sparkCtx.lineTo(w, h); sparkCtx.lineTo(0, h); sparkCtx.closePath();
+  sparkCtx.fillStyle = 'rgba(76,201,240,0.12)';
+  sparkCtx.fill();
+}
+
+let frames = 0, fpsTime = 0, fps = 0;
+let hudClock = 0;
+function updateHUD(dt) {
+  frames++; fpsTime += dt;
+  if (fpsTime >= 1) { fps = frames / fpsTime; frames = 0; fpsTime = 0; }
+  hudClock += dt;
+  if (hudClock < 0.1) return;
+  hudClock = 0;
+
+  const t = computeTelemetry();
+  $('s-ke').textContent = `${t.ke.toFixed(1)} J`;
+  $('s-pe').textContent = `${t.pe.toFixed(1)} J`;
+  $('s-te').textContent = `${t.te.toFixed(1)} J`;
+  $('s-p').textContent = t.p.toFixed(1);
+  $('s-col').textContent = String(collisionTotal);
+  $('s-fps').textContent = `${fps.toFixed(0)} fps`;
+
+  energyHistory.push(t.te);
+  if (energyHistory.length > 60) energyHistory.shift();
+  drawSpark();
+}
+
+$('r-g').addEventListener('input', (e) => {
+  sim.gravity = parseFloat(e.target.value);
+  $('o-g').textContent = sim.gravity.toFixed(1);
+  $('b-zerog').classList.toggle('toggled', sim.gravity === 0);
+});
+$('r-e').addEventListener('input', (e) => {
+  sim.restitution = parseFloat(e.target.value);
+  $('o-e').textContent = sim.restitution.toFixed(2);
+});
+
+let savedG = 9.8;
+$('b-zerog').addEventListener('click', () => {
+  if (sim.gravity > 0) {
+    savedG = sim.gravity;
+    sim.gravity = 0;
+  } else {
+    sim.gravity = savedG;
+  }
+  $('r-g').value = sim.gravity;
+  $('o-g').textContent = sim.gravity.toFixed(1);
+  $('b-zerog').classList.toggle('toggled', sim.gravity === 0);
+});
+
+$('b-explode').addEventListener('click', () => {
+  for (const b of bodies) {
+    tmpV.copy(b.pos).setY(b.pos.y * 0.5).sub(new THREE.Vector3(0, -2, 0)).normalize();
+    b.vel.addScaledVector(tmpV, 9 + Math.random() * 5);
+    b.vel.y += 4;
+    b.angVel.set((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14);
+  }
+});
+
+$('b-reset').addEventListener('click', resetBodies);
+
+/* ----------------------------------------------------------------------------
+ * Main loop
+ * ------------------------------------------------------------------------- */
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  composer.setSize(window.innerWidth, window.innerHeight);
+});
+
+resetBodies();
+
+const clock = new THREE.Clock();
+let accumulator = 0;
+let elapsed = 0;
+
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  elapsed += dt;
+
+  accumulator += dt;
+  while (accumulator >= FIXED_DT) {
+    stepPhysics(FIXED_DT);
+    accumulator -= FIXED_DT;
+  }
+
+  for (const b of bodies) {
+    b.mesh.position.copy(b.pos);
+    b.mesh.quaternion.copy(b.quat);
+  }
+
+  ring.material.color.setHSL(0.55 + Math.sin(elapsed * 0.5) * 0.06, 0.85, Math.min(0.85, 0.55 + collisionWindow * 0.02));
+  collisionWindow = Math.max(0, collisionWindow - dt * 8);
+
+  controls.update();
+  updateHUD(dt);
+  composer.render();
+});
+
+document.getElementById('loader').classList.add('done');
+</script>
+</body>
+</html>
