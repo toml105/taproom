@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { MicroGameContext } from '../games/types'
+import { answerScore } from '../games/scoreKit'
 
 export interface QuizPrompt {
   header: string
@@ -14,7 +15,7 @@ export interface QuizPrompt {
 export function QuizRound({
   ctx,
   prompts,
-  perMs = 6000,
+  perMs = 5000,
   cols = 1,
 }: {
   ctx: MicroGameContext
@@ -45,10 +46,8 @@ export function QuizRound({
   }
   function answer(choice: number) {
     if (doneRef.current || picked !== null) return
-    if (choice === prompts[i].answer) {
-      const bonus = Math.max(0, Math.round((perMs - (performance.now() - startRef.current)) / 25))
-      setScore((s) => s + 100 + bonus)
-    }
+    const correct = choice === prompts[i].answer
+    setScore((s) => s + answerScore(correct, perMs, startRef.current))
     setPicked(choice)
     setTimeout(() => {
       setPicked(null)
@@ -62,7 +61,7 @@ export function QuizRound({
   return (
     <div className="flex w-full flex-1 select-none flex-col px-6 py-8">
       <p className="text-center font-display text-[11px] tracking-[0.25em] text-amber/80">
-        {q.header} · {i + 1}/{N}
+        {q.header} · {i + 1}/{N} · {score}
       </p>
       <div className="flex flex-1 flex-col items-center justify-center text-center">{q.prompt}</div>
       <div className={`grid gap-2.5 ${cols === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>

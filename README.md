@@ -10,9 +10,11 @@ No truth-or-dare, no cringe. Just reflexes, precision, memory, and nerve.
 
 1. One person taps **Create a room** and shares the link (or QR / 4-letter code).
 2. Everyone opens it on their phone, picks a name and emoji, and lands in the lobby.
-3. The host starts the night. Each round: a 3-2-1 countdown, then everyone plays the **same** micro-game simultaneously.
+3. The host sets the night's length (8 / 12 / 20 rounds, or endless) and starts. Each round: a 3-2-1 countdown, then everyone plays the **same** micro-game simultaneously.
 4. You're ranked by skill. The worse you place, the more **sips** you drink (capped, humane). Top finishers stay sober.
-5. Hold to confirm you drank, the group clinks 🍻, the leaderboard updates, and the next game begins.
+5. Hold to confirm you drank, the group clinks 🍻, the leaderboard updates, and the next game begins — until the final round, when the soberest is crowned.
+
+On the thinking games (trivia, flags, maths, true/false…), a correct answer is the floor and **speed is the tiebreaker**: every right answer earns a flat base plus a bonus that decays the longer you take, so it pays to be both right *and* fast.
 
 It installs as a PWA ("Add to Home Screen"), but no install or login is needed. Just open the link.
 

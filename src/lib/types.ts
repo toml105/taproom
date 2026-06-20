@@ -93,9 +93,17 @@ export const DEFAULT_SETTINGS: GameSettings = {
   softModeDefault: false,
   comebackHandicap: true,
   enabledGameIds: [],
-  endless: true,
+  endless: false,
   totalRounds: 12,
 }
+
+/** Session-length presets offered in the lobby. `null` rounds = endless. */
+export const ROUND_LIMITS: { label: string; rounds: number | null }[] = [
+  { label: '8', rounds: 8 },
+  { label: '12', rounds: 12 },
+  { label: '20', rounds: 20 },
+  { label: '∞', rounds: null },
+]
 
 export const MAX_PLAYERS = 12
 

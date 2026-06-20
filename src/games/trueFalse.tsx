@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { pickIndices } from '../lib/rng'
 import { TRUE_FALSE } from './data/truefalse'
+import { answerScore } from './scoreKit'
 import type { MicroGame, MicroGameContext } from './types'
 
 const N = 6
-const PER_MS = 3000
+const PER_MS = 2600
 const PLAY_MS = N * PER_MS
 
 function TrueFalse({ ctx }: { ctx: MicroGameContext }) {
@@ -15,7 +16,11 @@ function TrueFalse({ ctx }: { ctx: MicroGameContext }) {
   const [score, setScore] = useState(0)
   const [picked, setPicked] = useState<boolean | null>(null)
   const doneRef = useRef(false)
+  const startRef = useRef(performance.now())
 
+  useEffect(() => {
+    startRef.current = performance.now()
+  }, [i])
   useEffect(() => {
     const t = setTimeout(finish, PLAY_MS)
     return () => clearTimeout(t)
@@ -30,7 +35,7 @@ function TrueFalse({ ctx }: { ctx: MicroGameContext }) {
   function answer(val: boolean) {
     if (doneRef.current || picked !== null) return
     setPicked(val)
-    if (val === items[i].a) setScore((s) => s + 1)
+    setScore((s) => s + answerScore(val === items[i].a, PER_MS, startRef.current))
     setTimeout(() => {
       setPicked(null)
       if (i + 1 >= N) finish()
@@ -79,10 +84,10 @@ function TrueFalse({ ctx }: { ctx: MicroGameContext }) {
 export const trueFalse: MicroGame = {
   id: 'true-false',
   title: 'True or False',
-  tagline: 'Six quick statements. Trust your gut.',
+  tagline: 'Six statements. Right and fast — don’t dither.',
   category: 'knowledge',
   direction: 'higher',
   playMs: PLAY_MS,
-  formatScore: (s) => `${s}/${N}`,
+  formatScore: (s) => `${s}`,
   Play: TrueFalse,
 }

@@ -24,16 +24,16 @@ function Flags({ ctx }: { ctx: MicroGameContext }) {
       }
     }),
   ).current
-  return <QuizRound ctx={ctx} prompts={prompts} perMs={6000} cols={2} />
+  return <QuizRound ctx={ctx} prompts={prompts} perMs={5000} cols={2} />
 }
 
 export const flags: MicroGame = {
   id: 'flags',
   title: 'Flags',
-  tagline: 'Name the country from its flag.',
+  tagline: 'Name the country from its flag. Quick and right wins.',
   category: 'knowledge',
   direction: 'higher',
-  playMs: N * 6000,
+  playMs: N * 5000,
   formatScore: (s) => `${s}`,
   Play: Flags,
 }

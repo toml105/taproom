@@ -36,12 +36,12 @@ import type { MicroGame } from '../games/types'
 import { TWISTS_BY_ID, TWIST_HARD_CAP, pickTwist } from '../games/twists'
 import { randomSeed } from '../lib/rng'
 
-const INTRO_MS = 3200
+const INTRO_MS = 2600
 const COUNT_MS = 3000
 const COLLECT_GRACE_MS = 6000
-const RESULTS_DWELL_MS = 4800
+const RESULTS_DWELL_MS = 4200
 const TARGETING_MS = 8000
-const LEADERBOARD_DWELL_MS = 6500
+const LEADERBOARD_DWELL_MS = 5500
 const HOST_GONE_GRACE_MS = 2500
 const SNAPSHOT_INTERVAL_MS = 10000
 /** Hot-streak immunity kicks in at this many consecutive wins. */

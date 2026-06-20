@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { pickIndices } from '../lib/rng'
 import { TRIVIA } from './data/trivia'
+import { answerScore } from './scoreKit'
 import type { MicroGame, MicroGameContext } from './types'
 
 const N = 3
-const PER_MS = 6000
+const PER_MS = 5000
 const PLAY_MS = N * PER_MS
 
 function Trivia({ ctx }: { ctx: MicroGameContext }) {
@@ -34,10 +35,7 @@ function Trivia({ ctx }: { ctx: MicroGameContext }) {
     if (doneRef.current || picked !== null) return
     const q = qs[i]
     setPicked(choice)
-    if (choice === q.answer) {
-      const bonus = Math.max(0, Math.round((PER_MS - (performance.now() - startRef.current)) / 25))
-      setScore((s) => s + 100 + bonus)
-    }
+    setScore((s) => s + answerScore(choice === q.answer, PER_MS, startRef.current))
     setTimeout(() => {
       setPicked(null)
       if (i + 1 >= N) finish()
@@ -50,7 +48,7 @@ function Trivia({ ctx }: { ctx: MicroGameContext }) {
   return (
     <div className="flex w-full flex-1 select-none flex-col px-6 py-8">
       <p className="text-center font-display text-[11px] tracking-[0.25em] text-amber/80">
-        {q.cat.toUpperCase()} · {i + 1}/{N}
+        {q.cat.toUpperCase()} · {i + 1}/{N} · {score}
       </p>
       <div className="flex flex-1 flex-col items-center justify-center">
         <p className="text-balance text-center text-2xl font-semibold text-ink">{q.q}</p>

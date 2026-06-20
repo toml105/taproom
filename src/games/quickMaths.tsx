@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { mulberry32 } from '../lib/rng'
+import { answerScore } from './scoreKit'
 import type { MicroGame, MicroGameContext } from './types'
 
 const N = 8
@@ -71,13 +72,9 @@ function QuickMaths({ ctx }: { ctx: MicroGameContext }) {
 
   function answer(choice: number) {
     if (doneRef.current) return
-    if (choice === problems[i].answer) {
-      const bonus = Math.max(0, Math.round((PER_MS - (performance.now() - startRef.current)) / 25))
-      setScore((s) => s + 100 + bonus)
-      setFlash('ok')
-    } else {
-      setFlash('no')
-    }
+    const correct = choice === problems[i].answer
+    setScore((s) => s + answerScore(correct, PER_MS, startRef.current))
+    setFlash(correct ? 'ok' : 'no')
     setTimeout(() => setFlash(null), 130)
     if (i + 1 >= N) setTimeout(finish, 150)
     else setI(i + 1)

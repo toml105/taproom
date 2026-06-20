@@ -30,9 +30,22 @@ export function RoundIntro() {
   const snapshot = useRoomStore((s) => s.snapshot)
   const play = useRoomStore((s) => s.play)
   const game = play?.game
+  const { endless, totalRounds } = snapshot.settings
+  const isFinal = !endless && snapshot.round >= totalRounds
+  const roundLabel = isFinal
+    ? 'FINAL ROUND'
+    : endless
+      ? `ROUND ${snapshot.round}`
+      : `ROUND ${snapshot.round} / ${totalRounds}`
   return (
     <Screen center className="px-7 text-center">
-      <p className="font-display text-[11px] tracking-[0.3em] text-ink-low">ROUND {snapshot.round}</p>
+      <p
+        className={`font-display text-[11px] tracking-[0.3em] ${
+          isFinal ? 'text-neon-pink' : 'text-ink-low'
+        }`}
+      >
+        {roundLabel}
+      </p>
       <motion.h1
         key={game?.id}
         initial={{ scale: 0.85, opacity: 0 }}
