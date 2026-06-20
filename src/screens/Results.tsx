@@ -137,6 +137,7 @@ export function Leaderboard({ onLeave }: { onLeave: () => void }) {
       <header className="pt-2 text-center">
         <p className="font-display text-[10px] tracking-[0.3em] text-ink-low">
           AFTER ROUND {snapshot.round}
+          {snapshot.settings.endless ? '' : ` / ${snapshot.settings.totalRounds}`}
         </p>
         <h1 className="mt-1 font-signage text-2xl text-amber text-glow-amber">Soberest wins</h1>
       </header>

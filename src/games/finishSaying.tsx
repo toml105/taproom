@@ -20,16 +20,16 @@ function FinishSaying({ ctx }: { ctx: MicroGameContext }) {
       }
     }),
   ).current
-  return <QuizRound ctx={ctx} prompts={prompts} perMs={6000} cols={1} />
+  return <QuizRound ctx={ctx} prompts={prompts} perMs={5000} cols={1} />
 }
 
 export const finishSaying: MicroGame = {
   id: 'finish-saying',
   title: 'Finish the Saying',
-  tagline: 'Pick the right ending to the famous saying.',
+  tagline: 'Pick the right ending — fast — to the famous saying.',
   category: 'knowledge',
   direction: 'higher',
-  playMs: N * 6000,
+  playMs: N * 5000,
   formatScore: (s) => `${s}`,
   Play: FinishSaying,
 }

@@ -20,16 +20,16 @@ function OddOneOut({ ctx }: { ctx: MicroGameContext }) {
       }
     }),
   ).current
-  return <QuizRound ctx={ctx} prompts={prompts} perMs={6000} cols={2} />
+  return <QuizRound ctx={ctx} prompts={prompts} perMs={5000} cols={2} />
 }
 
 export const oddOneOut: MicroGame = {
   id: 'odd-one-out',
   title: 'Odd One Out',
-  tagline: 'Tap the one that doesn’t belong with the others.',
+  tagline: 'Tap the one that doesn’t belong. Don’t dawdle.',
   category: 'knowledge',
   direction: 'higher',
-  playMs: N * 6000,
+  playMs: N * 5000,
   formatScore: (s) => `${s}`,
   Play: OddOneOut,
 }

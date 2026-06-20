@@ -3,6 +3,7 @@ import { ShareSheet } from '../components/ShareSheet'
 import { useRoomStore } from '../store/useRoomStore'
 import { getController } from '../hooks/useRoom'
 import { PACKS } from '../games/registry'
+import { ROUND_LIMITS } from '../lib/types'
 
 export function Lobby() {
   const snapshot = useRoomStore((s) => s.snapshot)
@@ -79,6 +80,34 @@ export function Lobby() {
                     {n}
                   </button>
                 ))}
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] uppercase tracking-wide text-ink-low">Rounds</p>
+              <div className="flex gap-1.5">
+                {ROUND_LIMITS.map((r) => {
+                  const active =
+                    r.rounds === null
+                      ? settings.endless
+                      : !settings.endless && settings.totalRounds === r.rounds
+                  return (
+                    <button
+                      key={r.label}
+                      onClick={() =>
+                        getController()?.setSettings(
+                          r.rounds === null
+                            ? { endless: true }
+                            : { endless: false, totalRounds: r.rounds },
+                        )
+                      }
+                      className={`h-9 w-9 rounded-lg text-sm font-bold transition ${
+                        active ? 'bg-amber text-pit' : 'border border-line/60 bg-panel text-ink-mid'
+                      }`}
+                    >
+                      {r.label}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           </div>

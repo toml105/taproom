@@ -3,7 +3,7 @@ import { pickIndices } from '../lib/rng'
 import { ESTIMATION } from './data/estimation'
 import type { MicroGame, MicroGameContext } from './types'
 
-const PLAY_MS = 11000
+const PLAY_MS = 9000
 
 function ClosestCall({ ctx }: { ctx: MicroGameContext }) {
   const q = useRef(ESTIMATION[pickIndices(ctx.seed ^ 0x55aa, ESTIMATION.length, 1)[0]]).current

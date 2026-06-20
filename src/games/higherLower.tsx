@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { pickIndices } from '../lib/rng'
 import { HIGHER_LOWER } from './data/higherlower'
+import { answerScore } from './scoreKit'
 import type { MicroGame, MicroGameContext } from './types'
 
 const N = 5
-const PLAY_MS = 14000
+const PER_MS = 2400
+const PLAY_MS = 12000
 
 function HigherLower({ ctx }: { ctx: MicroGameContext }) {
   const items = useRef(
@@ -14,7 +16,11 @@ function HigherLower({ ctx }: { ctx: MicroGameContext }) {
   const [score, setScore] = useState(0)
   const [picked, setPicked] = useState<null | 'a' | 'b'>(null)
   const doneRef = useRef(false)
+  const startRef = useRef(performance.now())
 
+  useEffect(() => {
+    startRef.current = performance.now()
+  }, [i])
   useEffect(() => {
     const t = setTimeout(finish, PLAY_MS)
     return () => clearTimeout(t)
@@ -32,7 +38,7 @@ function HigherLower({ ctx }: { ctx: MicroGameContext }) {
     const it = items[i]
     const correct = side === 'a' ? it.aVal >= it.bVal : it.bVal >= it.aVal
     setPicked(side)
-    if (correct) setScore((s) => s + 1)
+    setScore((s) => s + answerScore(correct, PER_MS, startRef.current))
     setTimeout(() => {
       setPicked(null)
       if (i + 1 >= N) finish()
@@ -57,7 +63,7 @@ function HigherLower({ ctx }: { ctx: MicroGameContext }) {
     <div className="flex w-full flex-1 select-none flex-col px-6 py-8">
       <div className="text-center">
         <p className="font-display text-[11px] tracking-[0.25em] text-amber/80">
-          HIGHER OR LOWER · {i + 1}/{N}
+          HIGHER OR LOWER · {i + 1}/{N} · {score}
         </p>
         <p className="mt-3 font-signage text-xl text-amber">{it.metric}?</p>
       </div>
@@ -87,10 +93,10 @@ function HigherLower({ ctx }: { ctx: MicroGameContext }) {
 export const higherLower: MicroGame = {
   id: 'higher-lower',
   title: 'Higher or Lower',
-  tagline: 'Tap whichever scores higher on the metric.',
+  tagline: 'Tap whichever scores higher — quickly — on the metric.',
   category: 'knowledge',
   direction: 'higher',
   playMs: PLAY_MS,
-  formatScore: (s) => `${s}/5`,
+  formatScore: (s) => `${s}`,
   Play: HigherLower,
 }

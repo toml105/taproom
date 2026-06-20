@@ -3,7 +3,7 @@ import { pickIndices } from '../lib/rng'
 import { YEARS } from './data/years'
 import type { MicroGame, MicroGameContext } from './types'
 
-const PLAY_MS = 11000
+const PLAY_MS = 9000
 
 function GuessYear({ ctx }: { ctx: MicroGameContext }) {
   const q = useRef(YEARS[pickIndices(ctx.seed ^ 0x42a, YEARS.length, 1)[0]]).current
